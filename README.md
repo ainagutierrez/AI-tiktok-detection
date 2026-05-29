@@ -16,13 +16,21 @@ Interactive dashboard: https://audio-model-comparison-dashboard-iyb93ncxjgjnuyft
 **Repository structure:**
 
 ai_tiktok_detector/
-├── chrome extension/        # Chrome extension backend: Flask server + CNN + SONICS pretrained detector (replication of Rahman et al.)
-├── sonics & cnn/            # Standalone offline pipeline (identical logic, no browser dependency) 
-├── deezer/                  # Deezer spectrogram-amplitude TensorFlow classifier (replication of D.Afchar et al.)
-├── laura_cros_vila/         # CLAP/MusiCNN embedding-based classifier (replication of Cros Vila et al.)
-├── tiktok_pipeline/         # Dataset construction: video wrapping + TikTok upload/download via Selenium
-├── transformations/         # Audio augmentation scripts (pitch shift, reverb, EQ, time stretch, noise)
-├── transformations_validations/ # Validation checks for each augmentation
+
+├── chrome extension/ 
+# Chrome extension backend: Flask server + CNN + SONICS pretrained detector (replication of Rahman et al.)
+├── sonics & cnn/    
+# Standalone offline pipeline (identical logic, no browser dependency) 
+├── deezer/  
+# Deezer spectrogram-amplitude TensorFlow classifier (replication of D.Afchar et al.)
+├── laura_cros_vila/   
+# CLAP/MusiCNN embedding-based classifier (replication of Cros Vila et al.)
+├── tiktok_pipeline/   
+# Dataset construction: video wrapping + TikTok upload/download via Selenium
+├── transformations/ 
+# Audio augmentation scripts (pitch shift, reverb, EQ, time stretch, noise)
+├── transformations_validations/ 
+# Validation checks for each augmentation
 └── metrics_analysis/        # Dataset evaluation, t-SNE/UMAP projections, thesis plots
 
 
