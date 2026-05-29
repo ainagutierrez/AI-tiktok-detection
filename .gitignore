@@ -1,0 +1,29 @@
+﻿# Python cache
+__pycache__/
+*/__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+
+# Model/checkpoint files
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.keras
+*.onnx
+
+# TensorFlow SavedModel / big binary data
+*.pb
+*.index
+*.data-00000-of-00001
+deezer/specnn_amplitude/
+laura_cros_vila/ckpt/
+
+# Big generated result files
+sonics & cnn/results/
+
+# Optional generated plots
+metrics_analysis/thesis_plots_600/
+metrics_analysis/thesis_plots_700/
