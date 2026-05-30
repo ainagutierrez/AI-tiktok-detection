@@ -34,6 +34,33 @@ ai_tiktok_detector/
 └── metrics_analysis/        # Dataset evaluation, t-SNE/UMAP projections, thesis plots
 
 
+This repository does not include the original pretrained models because of their size.
+
+**SONICS (Rahman et al.)**
+
+Install the SONICS package:
+
+pip install git+https://github.com/awsaf49/sonics.git
+
+
+The AI Music Arms Race (Cros Vila et Al.)
+
+Download the pretrained resources from the original repository:
+
+GitHub: [https://github.com/lcrosvila/ai-music-arms-race](https://github.com/lcrosvila/ai-music-detection)
+
+
+AI-Generated Music Detection and its Challenges (Afchar et al.)
+
+Download the pretrained model from the original Deezer repository:
+
+GitHub: [https://github.com/deezer/musicFPaugment](https://github.com/deezer/deepfake-detector)
+
+
+TikTok-Specific Trained Models
+
+The detectors trained as part of this thesis are available in the repository Releases section.
+
 
 **Citation:**
 
