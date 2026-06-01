@@ -35,8 +35,8 @@ https://audio-model-comparison-dashboard-iyb93ncxjgjnuyftpy2xd6.streamlit.app/
 
 ```text
 ai_tiktok_detector/
-├── chrome extension/            # Chrome extension backend: Flask server + CNN + SONICS pretrained detector (replication of Rahman et al.)
-├── sonics & cnn/                # Standalone offline pipeline (identical logic to chrome_extension, no browser dependency)
+├── chrome extension/            # Chrome extension backend: Flask server 
+├── sonics & cnn/                # CNN + SONICS pretrained detector (replication of Rahman et al.)
 ├── deezer/                      # Deezer spectrogram-amplitude TensorFlow classifier (replication of D.Afchar et al.)
 ├── laura_cros_vila/             # CLAP/MusiCNN embedding-based classifier (replication of Cros Vila et al.)
 ├── tiktok_pipeline/             # Dataset construction: video wrapping + TikTok upload/download via Selenium
