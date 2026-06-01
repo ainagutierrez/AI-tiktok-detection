@@ -65,6 +65,15 @@ Download the pretrained resources from the original repository:
 
 https://github.com/lcrosvila/ai-music-detection
 
+
+> **Important:** Before evaluating a dataset, you must first generate the embeddings for all audio files by running:
+>
+> ```bash
+> python get_embed.py
+> ```
+>
+> The detection pipeline expects these embeddings as input, so evaluation will not work correctly without this preprocessing step.
+
 ### AI-Generated Music Detection and its Challenges (Afchar et al.)
 
 Download the Deezer pretrained model from:
