@@ -11,7 +11,7 @@ class SimpleSpectrogramCNN(nn.Module):
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(15360, 128),  
+            nn.Linear(15360, 128),  # adjust depending on spectrogram size
             nn.ReLU(),
             nn.Linear(128, n_classes),
         )
