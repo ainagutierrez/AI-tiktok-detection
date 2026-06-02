@@ -1,419 +1,222 @@
 # %%
-import os
 import numpy as np
+import json
+import os
 import pickle
 import pandas as pd
-import json
-
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.metrics import classification_report
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from tqdm import tqdm
+from data_utils import get_split
 
-BASE_PATH = r"your/base_path"
-
-def load_single_embedding(file):
-    if not os.path.exists(file):
-        print(f"[WARNING] Missing embedding: {file}")
-        return None
-
-    try:
-        return np.load(file, mmap_mode="r")
-
-    except Exception as e:
-        print(f"[ERROR] Could not load {file}: {e}")
-        return None
-
-
-def load_embeddings(files):
-    embeddings = []
-
-    with ThreadPoolExecutor() as executor:
-        futures = {
-            executor.submit(load_single_embedding, f): f
-            for f in files
-        }
-
-        for future in tqdm(
-            as_completed(futures),
-            total=len(futures),
-            desc="Loading embeddings"
-        ):
-            emb = future.result()
-
-            if emb is not None:
-                embeddings.append(emb)
-
-    return np.array(embeddings)
-
-
-def get_split(split, embedding, folders):
-    files = []
-    y = []
-
-    for folder in folders:
-
-        emb_folder = os.path.join(
-            BASE_PATH,
-            folder,
-            split,
-            "embeddings",
-            embedding
-        )
-
-        if not os.path.exists(emb_folder):
-            print(f"[WARNING] Missing embeddings folder: {emb_folder}")
-            continue
-
-        for file_name in os.listdir(emb_folder):
-
-            if file_name.endswith(".npy"):
-
-                files.append(
-                    os.path.join(emb_folder, file_name)
-                )
-
-                y.append(folder)
-
-    if len(files) == 0:
-        print("[ERROR] No embeddings found.")
-        return np.array([]), np.array([]), []
-
-    X = load_embeddings(files)
-    y = np.array(y)
-
-    return X, y, files
-
+BASE_PATH = r"your/base/path"
 
 def load_ircamplify_results(folders):
-
     true_class = []
     files = []
     is_ai = []
     confidence = []
-
-    ircamplify_path = os.path.join(
-        BASE_PATH,
-        "ircamplify_results"
-    )
-
     for folder in folders:
-
-        folder_path = os.path.join(
-            ircamplify_path,
-            folder
-        )
-
-        if not os.path.exists(folder_path):
-            continue
-
+        folder_path = os.path.join(BASE_PATH, 'ircamplify_results', folder)
         for filename in os.listdir(folder_path):
-
-            if filename.endswith(".json"):
-
-                with open(
-                    os.path.join(folder_path, filename),
-                    "r"
-                ) as f:
-
+            if filename.endswith('.json'):
+                with open(os.path.join(folder_path, filename), 'r') as f:
                     data = json.load(f)
-
-                job_infos = data.get("job_infos", {})
-                file_paths = job_infos.get("file_paths", {})
-
-                report_info = job_infos.get("report_info", {})
-                report = report_info.get("report", {})
-
-                result_list = report.get("resultList", [])
-
-                for i, result in enumerate(result_list):
-
-                    true_class.append(folder)
-
-                    file = file_paths[i].split("/")[-1]
-
-                    files.append(file)
-
-                    is_ai.append(result.get("isAi"))
-
-                    confidence.append(result.get("confidence"))
-
-    return pd.DataFrame({
-        "true_class": true_class,
-        "file": files,
-        "is_ai": is_ai,
-        "confidence": confidence
-    })
+                    job_infos = data.get('job_infos', {})
+                    file_paths = job_infos.get('file_paths', {})
+                    report_info = job_infos.get('report_info', {})
+                    report = report_info.get('report', {})
+                    result_list = report.get('resultList', [])
+                    
+                    for i, result in enumerate(result_list):
+                        true_class.append(folder)
+                        file = file_paths[i].split('/')[-1]
+                        files.append(file)
+                        is_ai.append(result.get('isAi'))
+                        confidence.append(result.get('confidence'))
+    data = {
+        'true_class': true_class,
+        'file': files,
+        'is_ai': is_ai,
+        'confidence': confidence
+    }
+    data = pd.DataFrame(data)
+    return data
 
 def get_classifiers_results(models, X_sample_scaled, sample_files):
-
     true_class = []
     files = []
+    svm_pred_parent = []
+    svm_pred_child = []
+    rf_pred_parent = []
+    rf_pred_child = []
+    knn_pred_parent = []
+    knn_pred_child = []
 
-    svm_pred = []
-    rf_pred = []
-    knn_pred = []
-
-    for file in sample_files:
-
-        normalized_path = os.path.normpath(file)
-        path_parts = normalized_path.split(os.sep)
-
-        # dataset structure:
-        # BASE/folder/test/embeddings/model/file.npy
-        folder_label = path_parts[-5]
-
-        true_class.append(folder_label)
-
-        files.append(
-            os.path.basename(file).replace(".npy", ".mp3")
-        )
-
+    for i, file in enumerate(sample_files):
+        true_class.append(file.replace('\\', '/').split('/')[-5])
+        files.append(file.split('/')[-1].replace('npy','mp3'))
     for name, model in models.items():
-
         y_pred = model.predict(X_sample_scaled)
+        for i, file in enumerate(sample_files):
+            if name == 'svc':
+                svm_pred_parent.append(y_pred[i, 0])
+                svm_pred_child.append(y_pred[i, 1])
+            elif name == 'rf':
+                rf_pred_parent.append(y_pred[i, 0])
+                rf_pred_child.append(y_pred[i, 1])
+            elif name == 'knn':
+                knn_pred_parent.append(y_pred[i, 0])
+                knn_pred_child.append(y_pred[i, 1])
 
-        print(f"\n{name.upper()} unique predictions:")
-        print(np.unique(y_pred))
+    data = {
+        'true_class': true_class,
+        'file': files,
+        'svm_pred_parent': svm_pred_parent,
+        'svm_pred_child': svm_pred_child,
+        'rf_pred_parent': rf_pred_parent,
+        'rf_pred_child': rf_pred_child,
+        'knn_pred_parent': knn_pred_parent,
+        'knn_pred_child': knn_pred_child
+    }
+    data = pd.DataFrame(data)
+    return data
 
-        for pred in y_pred:
+def get_results_all(folders=['udio', 'lastfm']):   
+    # Load trained models and scaler
+    with open('models_and_scaler.pkl', 'rb') as f:
+        saved_data = pickle.load(f)
+    models = saved_data['models']
+    scaler = saved_data['scaler']
 
-            if isinstance(pred, (list, np.ndarray)):
-                pred = pred[0]
-
-            pred_str = str(pred).lower()
-
-            REAL_LABELS = ["nonai", "lastfm"]
-            FAKE_LABELS = ["ai", "suno", "udio"]
-
-            if pred_str in REAL_LABELS:
-                binary_pred = "real"
-
-            elif pred_str in FAKE_LABELS:
-                binary_pred = "fake"
-
-            else:
-                binary_pred = "unknown"
-
-            if name == "svc":
-                svm_pred.append(binary_pred)
-
-            elif name == "rf":
-                rf_pred.append(binary_pred)
-
-            elif name == "knn":
-                knn_pred.append(binary_pred)
-
-    return pd.DataFrame({
-        "true_class": true_class,
-        "file": files,
-
-        "svm_pred": svm_pred,
-        "rf_pred": rf_pred,
-        "knn_pred": knn_pred
-    })
-
-def get_results_all(folders=["real", "fake"]):
-
-    with open("models_and_scaler.pkl", "rb") as f:
-        saved = pickle.load(f)
-
-    models = saved["models"]
-    scaler = saved["scaler"]
-
-    X_sample, y_sample, sample_files = get_split(
-        split="test",
-        embedding="clap-laion-music",
-        folders=folders
-    )
-
-    if len(X_sample) == 0:
-        print("[ERROR] No embeddings loaded.")
-        return None
-
-    print(f"\nLoaded {len(X_sample)} embeddings")
-
+    X_sample, y_sample, sample_files = get_split('test', 'clap-laion-music', folders)
+    
     X_sample_scaled = scaler.transform(X_sample)
 
-    classifiers_results = get_classifiers_results(
-        models,
-        X_sample_scaled,
-        sample_files
-    )
+    # classifier results
+    classifiers_results = get_classifiers_results(models, X_sample_scaled, sample_files)
 
-    ircamplify_path = os.path.join(
-        BASE_PATH,
-        "ircamplify_results"
-    )
-
-    if os.path.exists(ircamplify_path):
-
-        ircamplify_results = load_ircamplify_results(
-            folders
-        ).drop_duplicates(
-            subset="file",
-            keep="first"
-        )
-
-        merged_data = pd.merge(
-            classifiers_results,
-            ircamplify_results,
-            on=["true_class", "file"],
-            how="left"
-        )
-
+    if os.path.exists(os.path.join(BASE_PATH, 'ircamplify_results')):
+        ircamplify_results = load_ircamplify_results(folders)
+        ircamplify_results = ircamplify_results.drop_duplicates(subset='file', keep='first')
+        merged_data = pd.merge(classifiers_results, ircamplify_results, on=['true_class', 'file'], how='left')
+        print('length of merged data:', len(merged_data))
         return merged_data
-
     else:
         return classifiers_results
 
-
-def print_confusion_matrix_latex(y_true, y_pred, name):
-
-    y_true_bool = np.array([
-        label == "fake"
-        for label in y_true
-    ])
-
-    y_pred_bool = np.array([
-        label == "fake"
-        for label in y_pred
-    ])
-
-    cm = pd.crosstab(
-        y_true_bool,
-        y_pred_bool,
-        rownames=["True"],
-        colnames=["Predicted"],
-        normalize="index"
-    )
-
-    print(f"\n{name} confusion matrix:")
-    print(cm.to_latex())
-
-
 def print_classification_report_latex(data):
+    y_true = data['true_class']
+    y_pred_svm_parent = data['svm_pred_parent']
+    y_pred_rf_parent = data['rf_pred_parent']
+    y_pred_knn_parent = data['knn_pred_parent']
+    if 'is_ai' in data:
+        y_pred_ai = data['is_ai']
 
-    y_true = data["true_class"]
+    # Convert true_class to AI vs non-AI binary classification
+    y_true_ai = np.array([False if label == 'lastfm' else True for label in y_true])
+    
+    y_pred_svm_ai = np.array([True if label == 'AI' else False for label in y_pred_svm_parent])
+    y_pred_rf_ai = np.array([True if label == 'AI' else False for label in y_pred_rf_parent])
+    y_pred_knn_ai = np.array([True if label == 'AI' else False for label in y_pred_knn_parent])
 
-    y_pred_svm = data["svm_pred"]
-    y_pred_rf = data["rf_pred"]
-    y_pred_knn = data["knn_pred"]
+    # Confusion matrices
+    if 'is_ai' in data:
+        classifiers = [
+            ("SVM Classifier", y_pred_svm_ai),
+            ("RF Classifier", y_pred_rf_ai),
+            ("KNN Classifier", y_pred_knn_ai),
+            ("Ircam Amplify Classifier", y_pred_ai)
+        ]
+    else:
+        classifiers = [
+            ("SVM Classifier", y_pred_svm_ai),
+            ("RF Classifier", y_pred_rf_ai),
+            ("KNN Classifier", y_pred_knn_ai),
+        ]
+    for (title, y_pred) in classifiers:
+        cm = pd.crosstab(y_true, y_pred, rownames=['True'], colnames=['Predicted'], margins=True)
+        cm = cm.iloc[:-1, :-1]
+        cm = cm.div(cm.sum(axis=1), axis=0)
+        print(f"{title}:\n{cm.to_latex()}\n")
 
-    print_confusion_matrix_latex(
-        y_true,
-        y_pred_svm,
-        "SVM"
-    )
+    # Create classification report for each classifier
+    svm_report = classification_report(y_true_ai, y_pred_svm_ai, output_dict=True)
+    rf_report = classification_report(y_true_ai, y_pred_rf_ai, output_dict=True)
+    knn_report = classification_report(y_true_ai, y_pred_knn_ai, output_dict=True)
+    if 'is_ai' in data:
+        ai_report = classification_report(y_true_ai, y_pred_ai, output_dict=True)
 
-    print_confusion_matrix_latex(
-        y_true,
-        y_pred_rf,
-        "RF"
-    )
+    # Parent-level table
+    table = r"\begin{table}[ht]\centering\begin{tabular}{lcccc}\hline"
+    table += "\n"
+    table += r"Classifier & Precision & Recall & F1-Score & Accuracy \\ \hline"
+    table += "\n"
+    if 'is_ai' in data:
+        classifiers = [("SVM", svm_report), ("RF", rf_report), ("KNN", knn_report), ("Ircam Amp.", ai_report)]
+    else:
+        classifiers = [("SVM", svm_report), ("RF", rf_report), ("KNN", knn_report)]
 
-    print_confusion_matrix_latex(
-        y_true,
-        y_pred_knn,
-        "KNN"
-    )
+    for classifier, report in classifiers:
+        precision = report['True']['precision']
+        recall = report['True']['recall']
+        f1_score = report['True']['f1-score']
+        accuracy = report['accuracy']
+        table += f"{classifier} & {precision:.3f} & {recall:.3f} & {f1_score:.3f} & {accuracy:.3f} \\\\ \hline \n"
 
-    if "is_ai" in data.columns:
-
-        ircam_pred = np.array([
-            "fake" if x else "real"
-            for x in data["is_ai"]
-        ])
-
-        print_confusion_matrix_latex(
-            y_true,
-            ircam_pred,
-            "Ircam Amplify"
-        )
-
-    table = (
-        r"\begin{table}[ht]"
-        r"\centering"
-        r"\begin{tabular}{lcccc}"
-        r"\hline"
-        "\n"
-    )
-
-    table += (
-        r"Classifier & Precision & Recall & F1-Score & Accuracy \\"
-        r" \hline"
-        "\n"
-    )
-
-    reports = []
-
-    reports.append((
-        "SVM",
-        classification_report(
-            y_true,
-            y_pred_svm,
-            output_dict=True,
-            zero_division=0
-        )
-    ))
-
-    reports.append((
-        "RF",
-        classification_report(
-            y_true,
-            y_pred_rf,
-            output_dict=True,
-            zero_division=0
-        )
-    ))
-
-    reports.append((
-        "KNN",
-        classification_report(
-            y_true,
-            y_pred_knn,
-            output_dict=True,
-            zero_division=0
-        )
-    ))
-
-    if "is_ai" in data.columns:
-
-        reports.append((
-            "Ircam Amp.",
-            classification_report(
-                y_true,
-                ircam_pred,
-                output_dict=True,
-                zero_division=0
-            )
-        ))
-
-    for name, report in reports:
-
-        table += (
-            f"{name} & "
-            f"{report['macro avg']['precision']:.3f} & "
-            f"{report['macro avg']['recall']:.3f} & "
-            f"{report['macro avg']['f1-score']:.3f} & "
-            f"{report['accuracy']:.3f} \\\\ \n"
-        )
-
-    table += (
-        r"\hline"
-        r"\end{tabular}"
-        r"\caption{Binary classification results (Real vs Fake)}"
-        r"\end{table}"
-    )
-
-    print("\n")
+    table += r"\end{tabular}\caption{Parent-level classification results (AI vs. non-AI) on the test set}\end{table}"
     print(table)
 
+    # Child-level table
+    y_pred_svm_child = data['svm_pred_child']
+    y_pred_rf_child = data['rf_pred_child']
+    y_pred_knn_child = data['knn_pred_child']
+
+    svm_report = classification_report(y_true, y_pred_svm_child, output_dict=True)
+    rf_report = classification_report(y_true, y_pred_rf_child, output_dict=True)
+    knn_report = classification_report(y_true, y_pred_knn_child, output_dict=True)
+
+    table = r"\begin{table}[ht]\centering\begin{tabular}{lcccc}\hline"
+    table += "\n"
+    table += r"Classifier & Precision & Recall & F1-Score & Accuracy \\ \hline"
+    table += "\n"
+    classifiers = [("SVM", svm_report), ("RF", rf_report), ("KNN", knn_report)]
+
+    for classifier, report in classifiers:
+        precision = report['macro avg']['precision']
+        recall = report['macro avg']['recall']
+        f1_score = report['macro avg']['f1-score']
+        accuracy = report['accuracy']
+        table += f"{classifier} & {precision:.3f} & {recall:.3f} & {f1_score:.3f} & {accuracy:.3f} \\\\ \hline \n"
+
+    table += r"\end{tabular}\caption{Child-level classification results (LastFM, Udio) on the test set}\end{table}"
+    print(table)
+
+    # Detailed child-level table
+    classifiers = [("SVM", svm_report), ("RF", rf_report), ("KNN", knn_report)]
+
+    detailed_table = r"\begin{table}[ht]\centering\begin{tabular}{llccc}\hline"
+    detailed_table += "\n"
+    detailed_table += r"Classifier & Category & Precision & Recall & F1-score \\ \hline"
+    detailed_table += "\n"
+
+    for classifier, report in classifiers:
+        detailed_table += f"\\multirow{{2}}{{*}}{{{classifier}}} "
+
+        for idx, category in enumerate(['lastfm', 'udio', 'suno']):
+            if idx > 0:
+                detailed_table += " & "
+            precision = report[category]['precision']
+            recall = report[category]['recall']
+            f1_score = report[category]['f1-score']
+            detailed_table += f"{category.capitalize()} & {precision:.3f} & {recall:.3f} & {f1_score:.3f} \\\\ \n"
+        detailed_table += r"\hline \n"
+
+    detailed_table += r"\end{tabular}\caption{Detailed child-level classification results (LastFM, Udio) on the test set}\end{table}"
+    print(detailed_table)
 
 if __name__ == "__main__":
-
-    folders = ["real", "fake"]
-
+    folders = ['udio', 'lastfm', 'suno']
     data = get_results_all(folders)
-
     if data is not None:
         print_classification_report_latex(data)
